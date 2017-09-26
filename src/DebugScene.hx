@@ -56,6 +56,7 @@ class DebugScene extends GameScene
 		debugCrosshair = new Bitmap(Res.crosshair.toTile(), debugLayer);
 		debugCrosshair.tile.dx = -cast(debugCrosshair.tile.width / 2, Int);
 		debugCrosshair.tile.dy = -cast(debugCrosshair.tile.height / 2, Int);
+		debugCrosshair.visible = false;
 		
 		debugScreenSize = new Text(Res.cour.build(32), debugLayer);
 		debugScreenSize.textColor = 0xFFFFFF;
@@ -108,12 +109,14 @@ class DebugScene extends GameScene
 	private var tileHover : Sprite;
 	private var tileSelected : Sprite;
 	private var tileReachable : Sprite;
+	private var tileAttackable : Sprite;
 	
 	private var entities : Map<Int, Entity>;
 	private var selectedEntity : Entity;
 	private var isEntitySelected : Bool;
 	
 	private var reachableTiles : Array<TileMapPosition>;
+	private var attackableTiles : Array<TileMapPosition>;
 	
 	private var startScrollMouseX : Float;
 	private var startScrollMouseY : Float;
@@ -127,13 +130,38 @@ class DebugScene extends GameScene
 	private var currentPlayer : Player;
 	private var currentPlayerIndex : Int;
 	
-	private function nextPlayer()
+	private var cursor : Sprite;
+	private var currentCursorBitmap : Bitmap;
+	private var defaultCursorBitmap : Bitmap;
+	private var selectCursorBitmap : Bitmap;
+	private var moveCursorBitmap : Bitmap;
+	private var attackCursorBitmap : Bitmap;
+	
+	private function deselectEntity() : Void
 	{
+		selectedEntity = null;
+		isEntitySelected = false;
+		tileSelected.visible = false;
+		tileReachable.removeChildren();
+		tileAttackable.removeChildren();
+	}
+	
+	private function nextPlayer() : Void
+	{
+		deselectEntity();
+
 		if (++currentPlayerIndex >= players.length)
 		{
 			currentPlayerIndex = 0;
 		}
-		currentPlayer = players[currentPlayerIndex];
+		currentPlayer = players[currentPlayerIndex];		
+	}
+	
+	private function setCursorBitmap(cursorBitmap : Bitmap) : Void
+	{
+		currentCursorBitmap.visible = false;
+		currentCursorBitmap = cursorBitmap;
+		currentCursorBitmap.visible = true;
 	}
 	
 	private function handleMouseEvent(event : Event)
@@ -142,11 +170,12 @@ class DebugScene extends GameScene
 		{
 			if (event.button == 0)
 			{
-				var tileX : Int = Math.floor((event.relX - tileMap.x) / tileWidth * (1 / zoomLevel));
-				var tileY : Int = Math.floor((event.relY - tileMap.y) / tileHeight * (1 / zoomLevel));
-				if (tileX >= 0 && tileX < tileMapCols && tileY >= 0 && tileY < tileMapRows)
+				var tile : TileMapPosition = new TileMapPosition(
+					Math.floor((event.relX - tileMap.x) / tileWidth * (1 / zoomLevel)), 
+					Math.floor((event.relY - tileMap.y) / tileHeight * (1 / zoomLevel)));
+				if (tile.inside(0, tileMapCols, 0, tileMapRows))
 				{
-					var entity = entities.get(new TileMapPosition(tileX, tileY).getMapKey());
+					var entity = entities.get(new TileMapPosition(tile.x, tile.y).getMapKey());
 					if (entity != null)
 					{
 						if (entity.player == currentPlayer)
@@ -154,36 +183,22 @@ class DebugScene extends GameScene
 							isEntitySelected = true;
 							selectedEntity = entity;
 							tileSelected.visible = true;
-							tileSelected.setPos(tileX * tileWidth, tileY * tileHeight);
+							tileSelected.setPos(tile.x * tileWidth, tile.y * tileHeight);
 							
 							reachableTiles = [];
 							
-							var topLeftX : Int = selectedEntity.position.x - selectedEntity.speed;
-							if (topLeftX < 0) topLeftX = 0;
-							else if (topLeftX >= tileMapCols) topLeftX = tileMapCols - 1;
+							var topLeftMoveBound : TileMapPosition = selectedEntity.position.sub(selectedEntity.speed);
+							topLeftMoveBound = topLeftMoveBound.clamp(0, tileMapCols - 1, 0, tileMapCols - 1);
+							var bottomRightMoveBound : TileMapPosition = selectedEntity.position.add(selectedEntity.speed + 1);
+							bottomRightMoveBound = bottomRightMoveBound.clamp(0, tileMapCols - 1, 0, tileMapRows - 1);
 							
-							var topLeftY : Int = selectedEntity.position.y - selectedEntity.speed;
-							if (topLeftY < 0) topLeftY = 0;
-							else if (topLeftY >= tileMapRows) topLeftY = tileMapRows - 1;
-							
-							var bottomRightX : Int = selectedEntity.position.x + selectedEntity.speed + 1;
-							if (bottomRightX < 0) bottomRightX = 0;
-							else if (bottomRightX >= tileMapCols) bottomRightX = tileMapCols;
-							
-							var bottomRightY : Int = selectedEntity.position.y + selectedEntity.speed + 1;
-							if (bottomRightY < 0) bottomRightY = 0;
-							else if (bottomRightY >= tileMapRows) bottomRightY = tileMapRows;
-							
-							for (x in topLeftX...bottomRightX)
+							for (x in topLeftMoveBound.x...bottomRightMoveBound.x + 1)
 							{
-								for (y in topLeftY...bottomRightY)
+								for (y in topLeftMoveBound.y...bottomRightMoveBound.y + 1)
 								{
 									if (x != selectedEntity.position.x || y != selectedEntity.position.y)
 									{
-										var dx : Int = x - selectedEntity.position.x;
-										var dy : Int = y - selectedEntity.position.y;
-										var distance : Float = Math.sqrt(dx * dx + dy * dy);
-										trace(distance);
+										var distance : Float = new TileMapPosition(x, y).distance(selectedEntity.position);
 										if (distance <= selectedEntity.speed)
 										{
 											reachableTiles.push(new TileMapPosition(x, y));
@@ -191,57 +206,85 @@ class DebugScene extends GameScene
 									}
 								}
 							}
+							
 							tileReachable.removeChildren();
 							var reachableTile : Tile = Res.TileReachable_png.toTile();
 							for (position in reachableTiles)
 							{
-								var reachableTileSprite : Sprite = new Sprite(tileReachable);
-								var reachableTileBitmap : Bitmap = new Bitmap(reachableTile, reachableTileSprite);
-								reachableTileSprite.setPos(position.x * tileWidth, position.y * tileHeight);
+								var reachableTileBitmap : Bitmap = new Bitmap(reachableTile, tileReachable);
+								reachableTileBitmap.setPos(position.x * tileWidth, position.y * tileHeight);
 							}
+							
+							attackableTiles = [];
+							
+							var topLeftAttackBound : TileMapPosition = selectedEntity.position.sub(selectedEntity.attackRange);
+							topLeftAttackBound = topLeftAttackBound.clamp(0, tileMapCols - 1, 0, tileMapCols - 1);
+							var bottomRightAttackBound : TileMapPosition = selectedEntity.position.add(selectedEntity.attackRange + 1);
+							bottomRightAttackBound = bottomRightAttackBound.clamp(0, tileMapCols - 1, 0, tileMapRows - 1);
+							
+							for (x in topLeftAttackBound.x...bottomRightAttackBound.x + 1)
+							{
+								for (y in topLeftAttackBound.y...bottomRightAttackBound.y + 1)
+								{
+									if (x != selectedEntity.position.x || y != selectedEntity.position.y)
+									{
+										var distance : Float = new TileMapPosition(x, y).distance(selectedEntity.position);
+										if (distance <= selectedEntity.attackRange)
+										{
+											attackableTiles.push(new TileMapPosition(x, y));
+										}
+									}
+								}
+							}
+							
+							tileAttackable.removeChildren();
+							var attackableTile : Tile = Res.TileAttackable_png.toTile();
+							for (position in attackableTiles)
+							{
+								var attackableTileBitmap : Bitmap = new Bitmap(attackableTile, tileAttackable);
+								attackableTileBitmap.setPos(position.x * tileWidth, position.y * tileHeight);
+							}
+						}
+						else
+						{
+							// NOTE(alex): pressed on enemy player
 						}
 					}
 					else
 					{
 						if (isEntitySelected)
 						{
-							var dx : Int = tileX - selectedEntity.position.x;
-							var dy : Int = tileY - selectedEntity.position.y;
+							var dx : Int = tile.x - selectedEntity.position.x;
+							var dy : Int = tile.y - selectedEntity.position.y;
 							var distance : Float = Math.sqrt(dx * dx + dy * dy);
 							if (distance <= selectedEntity.speed)
 							{
 								entities.remove(selectedEntity.position.getMapKey());
-								selectedEntity.position.x = tileX;
-								selectedEntity.position.y = tileY;
+								selectedEntity.position = new TileMapPosition(tile.x, tile.y);
 								entities.set(selectedEntity.position.getMapKey(), selectedEntity);
 								selectedEntity.sprite.setPos(selectedEntity.position.x * tileWidth, selectedEntity.position.y * tileHeight);
 							}
 						}
 						
-						selectedEntity = null;
-						isEntitySelected = false;
-						tileSelected.visible = false;
-						tileReachable.removeChildren();
+						deselectEntity();
 					}
 				}
 				else
 				{
-					selectedEntity = null;
-					tileSelected.visible = false;
-					tileReachable.removeChildren();
+					deselectEntity();
 				}
 			}
 			else if (event.button == 1)
-			{
-				
-			}
-			else if (event.button == 2)
 			{
 				scrolling = true;
 				startScrollMouseX = mouseX;
 				startScrollMouseY = mouseY;
 				startScrollPositionX = tileMap.x;
 				startScrollPositionY = tileMap.y;
+			}
+			else if (event.button == 2)
+			{
+				
 			}
 		}
 		else if (event.kind == ERelease)
@@ -252,12 +295,11 @@ class DebugScene extends GameScene
 			}
 			else if (event.button == 1)
 			{
-				
+				scrolling = false;
 			}
 			else if (event.button == 2)
 			{
-				trace("scroll end");
-				scrolling = false;
+				
 			}
 		}
 		else if (event.kind == EMove)
@@ -272,9 +314,8 @@ class DebugScene extends GameScene
 		}
 		else if (event.kind == EWheel)
 		{
-			trace(event.wheelDelta);
 			var oldZoomLevel = zoomLevel;
-			var dz : Float = 0.05 * (event.wheelDelta / 4);
+			var dz : Float = 0.0125 * event.wheelDelta;
 			zoomLevel -= dz;
 			if (zoomLevel < 0.25) zoomLevel = 0.25;
 			else if (zoomLevel > 4.0) zoomLevel = 4.0;
@@ -360,6 +401,7 @@ class DebugScene extends GameScene
 		tileSelected.visible = false;
 		
 		tileReachable = new Sprite(tileMap);
+		tileAttackable = new Sprite(tileMap);
 		
 		entities = new Map();
 		
@@ -400,27 +442,46 @@ class DebugScene extends GameScene
 		heavyArtillery2.sprite.setPos(heavyArtillery2.position.x * tileWidth, heavyArtillery2.position.y * tileHeight);
 		
 		players = [];
+		
 		var player1 : Player = new Player();
-		player1.name = "Player 1";
-		player1.entities.push(lightTank1);
-		lightTank1.player = player1;
-		player1.entities.push(mediumTank1);
-		mediumTank1.player = player1;
-		player1.entities.push(heavyArtillery1);
-		heavyArtillery1.player = player1;
 		players.push(player1);
+
+		player1.name = "Player 1";
+		player1.entityUnderlay = Res.TileUnderlayRed_png.toTile();
+		player1.addEntity(lightTank1);
+		player1.addEntity(mediumTank1);
+		player1.addEntity(heavyArtillery1);
+		
 		var player2 : Player = new Player();
-		player2.name = "Player 2";
-		player2.entities.push(lightTank2);
-		lightTank2.player = player2;
-		player2.entities.push(mediumTank2);
-		mediumTank2.player = player2;
-		player2.entities.push(heavyArtillery2);
-		heavyArtillery2.player = player2;
 		players.push(player2);
+
+		player2.name = "Player 2";
+		player2.entityUnderlay = Res.TileUnderlayBlue_png.toTile();
+		player2.addEntity(lightTank2);
+		player2.addEntity(mediumTank2);
+		player2.addEntity(heavyArtillery2);
 		
 		currentPlayer = player1;
 		currentPlayerIndex = 0;
+		
+		cursor = new Sprite(content);
+		defaultCursorBitmap = new Bitmap(Res.DefaultCursor_png.toTile(), cursor);
+		currentCursorBitmap = defaultCursorBitmap;
+		
+		selectCursorBitmap = new Bitmap(Res.SelectCursor_png.toTile(), cursor);
+		selectCursorBitmap.tile.dx = -cast(selectCursorBitmap.tile.width / 2., Int);
+		selectCursorBitmap.tile.dy = -cast(selectCursorBitmap.tile.height / 2., Int);
+		selectCursorBitmap.visible = false;
+		
+		moveCursorBitmap = new Bitmap(Res.MoveCursor_png.toTile(), cursor);
+		moveCursorBitmap.tile.dx = -cast(moveCursorBitmap.tile.width / 2., Int);
+		moveCursorBitmap.tile.dy = -cast(moveCursorBitmap.tile.height / 2., Int);
+		moveCursorBitmap.visible = false;
+		
+		attackCursorBitmap = new Bitmap(Res.AttackCursor_png.toTile(), cursor);
+		attackCursorBitmap.tile.dx = -cast(attackCursorBitmap.tile.width / 2., Int);
+		attackCursorBitmap.tile.dy = -cast(attackCursorBitmap.tile.height / 2., Int);
+		attackCursorBitmap.visible = false;
 		
 		addEventListener(handleMouseEvent);
 	}
@@ -429,17 +490,69 @@ class DebugScene extends GameScene
 	{
 		updateDebugLayer(dt);
 		
-		var gridMouseTileX : Int = Math.floor((mouseX - tileMap.x) / tileWidth * (1 / zoomLevel));
-		var gridMouseTileY : Int = Math.floor((mouseY - tileMap.y) / tileHeight * (1 / zoomLevel));
-		if (gridMouseTileX >= 0 && gridMouseTileX < tileMapCols && gridMouseTileY >= 0 && gridMouseTileY < tileMapRows)
+		cursor.x = mouseX;
+		cursor.y = mouseY;
+		
+		var gridMouseTile : TileMapPosition = new TileMapPosition(
+			Math.floor((mouseX - tileMap.x) / tileWidth * (1 / zoomLevel)), 
+			Math.floor((mouseY - tileMap.y) / tileHeight * (1 / zoomLevel)));
+		if (gridMouseTile.inside(0, tileMapCols - 1, 0, tileMapRows - 1))
 		{
 			tileHover.visible = true;
-			tileHover.setPos(gridMouseTileX * tileWidth, gridMouseTileY * tileHeight);
+			tileHover.setPos(gridMouseTile.x * tileWidth, gridMouseTile.y * tileHeight);
+			
+			var hoveredEntity : Entity = entities.get(gridMouseTile.getMapKey());
+			if (hoveredEntity != null)
+			{
+				if (isEntitySelected)
+				{
+					if (hoveredEntity.player == currentPlayer)
+					{
+						setCursorBitmap(selectCursorBitmap);
+					}
+					else
+					{
+						setCursorBitmap(attackCursorBitmap);
+					}
+				}
+				else
+				{
+					if (hoveredEntity.player == currentPlayer)
+					{
+						setCursorBitmap(selectCursorBitmap);
+					}
+					else
+					{
+						setCursorBitmap(defaultCursorBitmap);
+					}
+				}
+			}
+			else 
+			{
+				if (isEntitySelected)
+				{
+					var distance : Float = gridMouseTile.distance(selectedEntity.position);
+					if (distance <= selectedEntity.speed)
+					{
+						setCursorBitmap(moveCursorBitmap);
+					}
+					else
+					{
+						setCursorBitmap(defaultCursorBitmap);
+					}
+				}
+				else
+				{
+					setCursorBitmap(defaultCursorBitmap);
+				}
+			}
 		}
 		else
 		{
 			tileHover.visible = false;
 		}
+		
+		
 	}
 	
 }
