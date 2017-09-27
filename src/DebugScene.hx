@@ -154,7 +154,12 @@ class DebugScene extends GameScene
 		{
 			currentPlayerIndex = 0;
 		}
-		currentPlayer = players[currentPlayerIndex];		
+		currentPlayer = players[currentPlayerIndex];
+		
+		for (entity in currentPlayer.entities)
+		{
+			entity.canBeUsed = true;
+		}
 	}
 	
 	private function setCursorBitmap(cursorBitmap : Bitmap) : Void
@@ -179,81 +184,95 @@ class DebugScene extends GameScene
 					if (entity != null)
 					{
 						if (entity.player == currentPlayer)
-						{
-							isEntitySelected = true;
-							selectedEntity = entity;
-							tileSelected.visible = true;
-							tileSelected.setPos(tile.x * tileWidth, tile.y * tileHeight);
-							
-							reachableTiles = [];
-							
-							var topLeftMoveBound : TileMapPosition = selectedEntity.position.sub(selectedEntity.speed);
-							topLeftMoveBound = topLeftMoveBound.clamp(0, tileMapCols - 1, 0, tileMapCols - 1);
-							var bottomRightMoveBound : TileMapPosition = selectedEntity.position.add(selectedEntity.speed + 1);
-							bottomRightMoveBound = bottomRightMoveBound.clamp(0, tileMapCols - 1, 0, tileMapRows - 1);
-							
-							for (x in topLeftMoveBound.x...bottomRightMoveBound.x + 1)
+						{	
+							if (entity.canBeUsed)
 							{
-								for (y in topLeftMoveBound.y...bottomRightMoveBound.y + 1)
+								// NOTE(alex): pressed on player's entity (select)
+								isEntitySelected = true;
+								selectedEntity = entity;
+								tileSelected.visible = true;
+								tileSelected.setPos(tile.x * tileWidth, tile.y * tileHeight);
+								
+								reachableTiles = [];
+								
+								var topLeftMoveBound : TileMapPosition = selectedEntity.position.sub(selectedEntity.speed);
+								topLeftMoveBound = topLeftMoveBound.clamp(0, tileMapCols - 1, 0, tileMapCols - 1);
+								var bottomRightMoveBound : TileMapPosition = selectedEntity.position.add(selectedEntity.speed + 1);
+								bottomRightMoveBound = bottomRightMoveBound.clamp(0, tileMapCols - 1, 0, tileMapRows - 1);
+								
+								for (x in topLeftMoveBound.x...bottomRightMoveBound.x + 1)
 								{
-									if (x != selectedEntity.position.x || y != selectedEntity.position.y)
+									for (y in topLeftMoveBound.y...bottomRightMoveBound.y + 1)
 									{
-										var distance : Float = new TileMapPosition(x, y).distance(selectedEntity.position);
-										if (distance <= selectedEntity.speed)
+										if (x != selectedEntity.position.x || y != selectedEntity.position.y)
 										{
-											reachableTiles.push(new TileMapPosition(x, y));
+											var distance : Float = new TileMapPosition(x, y).distance(selectedEntity.position);
+											if (distance <= selectedEntity.speed)
+											{
+												reachableTiles.push(new TileMapPosition(x, y));
+											}
 										}
 									}
 								}
-							}
-							
-							tileReachable.removeChildren();
-							var reachableTile : Tile = Res.TileReachable_png.toTile();
-							for (position in reachableTiles)
-							{
-								var reachableTileBitmap : Bitmap = new Bitmap(reachableTile, tileReachable);
-								reachableTileBitmap.setPos(position.x * tileWidth, position.y * tileHeight);
-							}
-							
-							attackableTiles = [];
-							
-							var topLeftAttackBound : TileMapPosition = selectedEntity.position.sub(selectedEntity.attackRange);
-							topLeftAttackBound = topLeftAttackBound.clamp(0, tileMapCols - 1, 0, tileMapCols - 1);
-							var bottomRightAttackBound : TileMapPosition = selectedEntity.position.add(selectedEntity.attackRange + 1);
-							bottomRightAttackBound = bottomRightAttackBound.clamp(0, tileMapCols - 1, 0, tileMapRows - 1);
-							
-							for (x in topLeftAttackBound.x...bottomRightAttackBound.x + 1)
-							{
-								for (y in topLeftAttackBound.y...bottomRightAttackBound.y + 1)
+								
+								tileReachable.removeChildren();
+								var reachableTile : Tile = Res.TileReachable_png.toTile();
+								for (position in reachableTiles)
 								{
-									if (x != selectedEntity.position.x || y != selectedEntity.position.y)
+									var reachableTileBitmap : Bitmap = new Bitmap(reachableTile, tileReachable);
+									reachableTileBitmap.setPos(position.x * tileWidth, position.y * tileHeight);
+								}
+								
+								attackableTiles = [];
+								
+								var topLeftAttackBound : TileMapPosition = selectedEntity.position.sub(selectedEntity.attackRange);
+								topLeftAttackBound = topLeftAttackBound.clamp(0, tileMapCols - 1, 0, tileMapCols - 1);
+								var bottomRightAttackBound : TileMapPosition = selectedEntity.position.add(selectedEntity.attackRange + 1);
+								bottomRightAttackBound = bottomRightAttackBound.clamp(0, tileMapCols - 1, 0, tileMapRows - 1);
+								
+								for (x in topLeftAttackBound.x...bottomRightAttackBound.x + 1)
+								{
+									for (y in topLeftAttackBound.y...bottomRightAttackBound.y + 1)
 									{
-										var distance : Float = new TileMapPosition(x, y).distance(selectedEntity.position);
-										if (distance <= selectedEntity.attackRange)
+										if (x != selectedEntity.position.x || y != selectedEntity.position.y)
 										{
-											attackableTiles.push(new TileMapPosition(x, y));
+											var distance : Float = new TileMapPosition(x, y).distance(selectedEntity.position);
+											if (distance <= selectedEntity.attackRange)
+											{
+												attackableTiles.push(new TileMapPosition(x, y));
+											}
 										}
 									}
 								}
+								
+								tileAttackable.removeChildren();
+								var attackableTile : Tile = Res.TileAttackable_png.toTile();
+								for (position in attackableTiles)
+								{
+									var attackableTileBitmap : Bitmap = new Bitmap(attackableTile, tileAttackable);
+									attackableTileBitmap.setPos(position.x * tileWidth, position.y * tileHeight);
+								}
+							}
+							else
+							{
+								
 							}
 							
-							tileAttackable.removeChildren();
-							var attackableTile : Tile = Res.TileAttackable_png.toTile();
-							for (position in attackableTiles)
-							{
-								var attackableTileBitmap : Bitmap = new Bitmap(attackableTile, tileAttackable);
-								attackableTileBitmap.setPos(position.x * tileWidth, position.y * tileHeight);
-							}
 						}
 						else
 						{
-							// NOTE(alex): pressed on enemy player
+							// NOTE(alex): pressed on enemy's entity (attack)
+							entities.remove(entity.position.getMapKey());
+							tileMap.removeChild(entity.sprite);
+							selectedEntity.canBeUsed = false;
+							deselectEntity();
 						}
 					}
 					else
 					{
 						if (isEntitySelected)
 						{
+							// NOTE(alex): move the entity to the empty tile
 							var dx : Int = tile.x - selectedEntity.position.x;
 							var dy : Int = tile.y - selectedEntity.position.y;
 							var distance : Float = Math.sqrt(dx * dx + dy * dy);
@@ -263,6 +282,7 @@ class DebugScene extends GameScene
 								selectedEntity.position = new TileMapPosition(tile.x, tile.y);
 								entities.set(selectedEntity.position.getMapKey(), selectedEntity);
 								selectedEntity.sprite.setPos(selectedEntity.position.x * tileWidth, selectedEntity.position.y * tileHeight);
+								selectedEntity.canBeUsed = false;
 							}
 						}
 						
@@ -461,8 +481,9 @@ class DebugScene extends GameScene
 		player2.addEntity(mediumTank2);
 		player2.addEntity(heavyArtillery2);
 		
-		currentPlayer = player1;
-		currentPlayerIndex = 0;
+		currentPlayer = players[players.length - 1];
+		currentPlayerIndex = players.length;
+		nextPlayer();
 		
 		cursor = new Sprite(content);
 		defaultCursorBitmap = new Bitmap(Res.DefaultCursor_png.toTile(), cursor);
@@ -508,16 +529,31 @@ class DebugScene extends GameScene
 				{
 					if (hoveredEntity.player == currentPlayer)
 					{
-						setCursorBitmap(selectCursorBitmap);
+						if (hoveredEntity.canBeUsed)
+						{
+							setCursorBitmap(selectCursorBitmap);
+						}
+						else
+						{
+							setCursorBitmap(defaultCursorBitmap);
+						}
 					}
 					else
 					{
-						setCursorBitmap(attackCursorBitmap);
+						var distance : Float = hoveredEntity.position.distance(selectedEntity.position);
+						if (distance <= selectedEntity.attackRange)
+						{
+							setCursorBitmap(attackCursorBitmap);
+						}
+						else
+						{
+							setCursorBitmap(defaultCursorBitmap);
+						}
 					}
 				}
 				else
 				{
-					if (hoveredEntity.player == currentPlayer)
+					if (hoveredEntity.player == currentPlayer && hoveredEntity.canBeUsed)
 					{
 						setCursorBitmap(selectCursorBitmap);
 					}

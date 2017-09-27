@@ -16,7 +16,7 @@ class Entity
 	public var position : TileMapPosition;
 	public var speed : Int;
 	public var attackRange : Int;
-	public var used : Bool;
+	public var canBeUsed : Bool;
 
 	public function new(parent : Sprite, position : TileMapPosition, speed : Int) 
 	{
@@ -24,7 +24,7 @@ class Entity
 		underlay = new Sprite(sprite);
 		this.position = position;
 		this.speed = speed;
-		used = false;
+		canBeUsed = false;
 	}
 	
 }
