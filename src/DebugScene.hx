@@ -195,9 +195,9 @@ class DebugScene extends GameScene
 								
 								reachableTiles = [];
 								
-								var topLeftMoveBound : TileMapPosition = selectedEntity.position.sub(selectedEntity.speed);
+								var topLeftMoveBound : TileMapPosition = selectedEntity.position.sub(selectedEntity.movementSpeed);
 								topLeftMoveBound = topLeftMoveBound.clamp(0, tileMapCols - 1, 0, tileMapCols - 1);
-								var bottomRightMoveBound : TileMapPosition = selectedEntity.position.add(selectedEntity.speed + 1);
+								var bottomRightMoveBound : TileMapPosition = selectedEntity.position.add(selectedEntity.movementSpeed + 1);
 								bottomRightMoveBound = bottomRightMoveBound.clamp(0, tileMapCols - 1, 0, tileMapRows - 1);
 								
 								for (x in topLeftMoveBound.x...bottomRightMoveBound.x + 1)
@@ -207,7 +207,7 @@ class DebugScene extends GameScene
 										if (x != selectedEntity.position.x || y != selectedEntity.position.y)
 										{
 											var distance : Float = new TileMapPosition(x, y).distance(selectedEntity.position);
-											if (distance <= selectedEntity.speed)
+											if (distance <= selectedEntity.movementSpeed)
 											{
 												reachableTiles.push(new TileMapPosition(x, y));
 											}
@@ -261,11 +261,18 @@ class DebugScene extends GameScene
 						}
 						else
 						{
-							// NOTE(alex): pressed on enemy's entity (attack)
-							entities.remove(entity.position.getMapKey());
-							tileMap.removeChild(entity.sprite);
-							selectedEntity.canBeUsed = false;
-							deselectEntity();
+							if (isEntitySelected && selectedEntity.canBeUsed)
+							{
+								// NOTE(alex): pressed on enemy's entity (attack)
+								entities.remove(entity.position.getMapKey());
+								tileMap.removeChild(entity.sprite);
+								selectedEntity.canBeUsed = false;
+								deselectEntity();
+							}
+							else
+							{
+								
+							}
 						}
 					}
 					else
@@ -276,7 +283,7 @@ class DebugScene extends GameScene
 							var dx : Int = tile.x - selectedEntity.position.x;
 							var dy : Int = tile.y - selectedEntity.position.y;
 							var distance : Float = Math.sqrt(dx * dx + dy * dy);
-							if (distance <= selectedEntity.speed)
+							if (distance <= selectedEntity.movementSpeed)
 							{
 								entities.remove(selectedEntity.position.getMapKey());
 								selectedEntity.position = new TileMapPosition(tile.x, tile.y);
@@ -425,37 +432,49 @@ class DebugScene extends GameScene
 		
 		entities = new Map();
 		
-		var lightTank1 : Entity = new Entity(tileMap, new TileMapPosition(1, 3), 7);
+		var lightTank1 : Entity = new Entity(tileMap);
+		lightTank1.position = new TileMapPosition(1, 3);
+		lightTank1.movementSpeed = 7;
 		lightTank1.attackRange = 20;
 		var lightTankBitmap : Bitmap = new Bitmap(Res.LightTank_png.toTile(), lightTank1.sprite);
 		entities.set(lightTank1.position.getMapKey(), lightTank1);
 		lightTank1.sprite.setPos(lightTank1.position.x * tileWidth, lightTank1.position.y * tileHeight);
 
-		var mediumTank1 : Entity = new Entity(tileMap, new TileMapPosition(3, 1), 4);
+		var mediumTank1 : Entity = new Entity(tileMap);
+		mediumTank1.position = new TileMapPosition(3, 1);
+		mediumTank1.movementSpeed = 4;
 		mediumTank1.attackRange = 24;
 		var mediumTankBitmap : Bitmap = new Bitmap(Res.MediumTank_png.toTile(), mediumTank1.sprite);
 		entities.set(mediumTank1.position.getMapKey(), mediumTank1);
 		mediumTank1.sprite.setPos(mediumTank1.position.x * tileWidth, mediumTank1.position.y * tileHeight);
 
-		var heavyArtillery1 : Entity = new Entity(tileMap, new TileMapPosition(1, 1), 1);
+		var heavyArtillery1 : Entity = new Entity(tileMap);
+		heavyArtillery1.position = new TileMapPosition(1, 1);
+		heavyArtillery1.movementSpeed = 1;
 		heavyArtillery1.attackRange = 38;
 		var heavyArtilleryBitmap : Bitmap = new Bitmap(Res.HeavyArtillery_png.toTile(), heavyArtillery1.sprite);
 		entities.set(heavyArtillery1.position.getMapKey(), heavyArtillery1);
 		heavyArtillery1.sprite.setPos(heavyArtillery1.position.x * tileWidth, heavyArtillery1.position.y * tileHeight);
 		
-		var lightTank2 : Entity = new Entity(tileMap, new TileMapPosition(9, 11), 7);
+		var lightTank2 : Entity = new Entity(tileMap);
+		lightTank2.position = new TileMapPosition(9, 11);
+		lightTank2.movementSpeed = 7;
 		lightTank2.attackRange = 20;
 		var lightTankBitmap : Bitmap = new Bitmap(Res.LightTank_png.toTile(), lightTank2.sprite);
 		entities.set(lightTank2.position.getMapKey(), lightTank2);
 		lightTank2.sprite.setPos(lightTank2.position.x * tileWidth, lightTank2.position.y * tileHeight);
 
-		var mediumTank2 : Entity = new Entity(tileMap, new TileMapPosition(11, 9), 4);
+		var mediumTank2 : Entity = new Entity(tileMap);
+		mediumTank2.position = new TileMapPosition(11, 9);
+		mediumTank2.movementSpeed = 4;
 		mediumTank2.attackRange = 24;
 		var mediumTankBitmap : Bitmap = new Bitmap(Res.MediumTank_png.toTile(), mediumTank2.sprite);
 		entities.set(mediumTank2.position.getMapKey(), mediumTank2);
 		mediumTank2.sprite.setPos(mediumTank2.position.x * tileWidth, mediumTank2.position.y * tileHeight);
 
-		var heavyArtillery2 : Entity = new Entity(tileMap, new TileMapPosition(11, 11), 1);
+		var heavyArtillery2 : Entity = new Entity(tileMap);
+		heavyArtillery2.position = new TileMapPosition(11, 11);
+		heavyArtillery2.movementSpeed = 1;
 		heavyArtillery2.attackRange = 38;
 		var heavyArtilleryBitmap : Bitmap = new Bitmap(Res.HeavyArtillery_png.toTile(), heavyArtillery2.sprite);
 		entities.set(heavyArtillery2.position.getMapKey(), heavyArtillery2);
@@ -568,7 +587,7 @@ class DebugScene extends GameScene
 				if (isEntitySelected)
 				{
 					var distance : Float = gridMouseTile.distance(selectedEntity.position);
-					if (distance <= selectedEntity.speed)
+					if (distance <= selectedEntity.movementSpeed)
 					{
 						setCursorBitmap(moveCursorBitmap);
 					}
